@@ -15,9 +15,9 @@ const (
 	PATCH  = "PATCH"
 )
 
-type HttpHandler func(http.ResponseWriter, *http.Request, map[string]string)
+type HttpHandler = func(http.ResponseWriter, *http.Request, map[string]string)
 
-type Middleware func(HttpHandler) HttpHandler
+type Middleware = func(HttpHandler) HttpHandler
 
 type route struct {
 	handler HttpHandler
