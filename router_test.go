@@ -199,3 +199,42 @@ func TestCreatesTwoVariablesAtTheSamePosition(t *testing.T) {
 		router.Get("/tests/:id", emptyHandler)
 	})
 }
+
+func TestMiddleware(t *testing.T) {
+	executed := make([]string, 0)
+
+	middleware1 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, pv map[string]string) {
+			executed = append(executed, "middleware1")
+			in(w, r, pv)
+		}
+	}
+
+	middleware2 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, pv map[string]string) {
+			executed = append(executed, "middleware2")
+			in(w, r, pv)
+		}
+	}
+
+	router := router.New()
+
+	router.Use(middleware1)
+	router.Use(middleware2)
+
+	router.Get("/test", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+		executed = append(executed, "get")
+	})
+
+	w := &TestResponseWriter{}
+	r := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/test"},
+	}
+	router.ServeHTTP(w, r)
+
+	assert.Equal(t, 3, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "middleware2", executed[1])
+	assert.Equal(t, "get", executed[2])
+}
