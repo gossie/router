@@ -15,47 +15,21 @@ const (
 	PATCH  = "PATCH"
 )
 
-type HttpHandler func(http.ResponseWriter, *http.Request, map[string]string)
+type HttpHandler = func(http.ResponseWriter, *http.Request, map[string]string)
+
+type Middleware = func(HttpHandler) HttpHandler
 
 type route struct {
 	handler HttpHandler
 }
 
 type HttpRouter struct {
-	routes map[string]*pathTree
+	routes              map[string]*pathTree
+	middlewareFunctions []Middleware
 }
 
 func New() *HttpRouter {
-	return &HttpRouter{make(map[string]*pathTree)}
-}
-
-func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	pathVariables := make(map[string]string)
-
-	if tree, present := h.routes[r.Method]; present {
-		currentNode := tree.root
-		if r.URL.Path == "/" {
-			currentNode.route.handler(w, r, pathVariables)
-			return
-		}
-
-		for _, el := range strings.Split(r.URL.Path, "/") {
-			if el != "" && currentNode != nil {
-				currentNode = currentNode.getNode(el)
-				if currentNode != nil && currentNode.nodeType == "var" {
-					pathVariables[currentNode.pathElement] = el
-				}
-			}
-		}
-
-		if currentNode != nil && currentNode.route != nil {
-			currentNode.route.handler(w, r, pathVariables)
-			return
-		}
-	}
-
-	log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
-	http.NotFound(w, r)
+	return &HttpRouter{make(map[string]*pathTree), make([]Middleware, 0)}
 }
 
 func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) {
@@ -111,6 +85,44 @@ func (h *HttpRouter) Patch(path string, handler HttpHandler) {
 func (h *HttpRouter) Post(path string, handler HttpHandler) {
 	h.addRoute(path, POST, handler)
 }
+
 func (h *HttpRouter) Delete(path string, handler HttpHandler) {
 	h.addRoute(path, DELETE, handler)
+}
+
+func (h *HttpRouter) Use(middleware Middleware) {
+	h.middlewareFunctions = append(h.middlewareFunctions, middleware)
+}
+
+func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	pathVariables := make(map[string]string)
+
+	if tree, present := h.routes[r.Method]; present {
+		currentNode := tree.root
+		if r.URL.Path == "/" {
+			currentNode.route.handler(w, r, pathVariables)
+			return
+		}
+
+		for _, el := range strings.Split(r.URL.Path, "/") {
+			if el != "" && currentNode != nil {
+				currentNode = currentNode.getNode(el)
+				if currentNode != nil && currentNode.nodeType == "var" {
+					pathVariables[currentNode.pathElement] = el
+				}
+			}
+		}
+
+		if currentNode != nil && currentNode.route != nil {
+			handlerToExceute := currentNode.route.handler
+			for i := len(h.middlewareFunctions) - 1; i >= 0; i-- {
+				handlerToExceute = h.middlewareFunctions[i](handlerToExceute)
+			}
+			handlerToExceute(w, r, pathVariables)
+			return
+		}
+	}
+
+	log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
+	http.NotFound(w, r)
 }
