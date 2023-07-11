@@ -33,14 +33,14 @@ import (
 )
 
 func trackRequestRuntime(handler router.HttpHandler) router.HttpHandler {
-	return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
-		start := time.Now()
-		defer func() {
-			log.Default().Println("request took", time.Since(start).Milliseconds(), "ms")
-		}()
+    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+        start := time.Now()
+        defer func() {
+            log.Default().Println("request took", time.Since(start).Milliseconds(), "ms")
+        }()
 
-		handler(w, r, m)
-	}
+        handler(w, r, m)
+    }
 }
 
 func main() {
