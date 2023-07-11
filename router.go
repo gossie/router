@@ -68,16 +68,24 @@ func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) {
 	}
 
 	currentNode := h.routes[method].root
+	var err error
 	for _, el := range strings.Split(path, "/") {
 		if el != "" {
 			if strings.HasPrefix(el, ":") {
-				currentNode, _ = currentNode.createOrGetVarChild(el[1:])
+				currentNode, err = currentNode.createOrGetVarChild(el[1:])
 			} else {
-				currentNode, _ = currentNode.createOrGetStaticChild(el)
+				currentNode, err = currentNode.createOrGetStaticChild(el)
+			}
+
+			if err != nil {
+				panic(err.Error())
 			}
 		}
 	}
-	currentNode.route = &route{handler}
+
+	if currentNode != nil {
+		currentNode.route = &route{handler}
+	}
 }
 
 func (h *HttpRouter) Handle(path string, handler http.Handler) {
