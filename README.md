@@ -1,6 +1,6 @@
 # http-router
 
-# Usage
+## Usage
 
 A simple server could look like this:
 ```go
@@ -23,7 +23,7 @@ func main() {
 The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, map[string]string)`
 The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package. The third parameter is a `map` containing the path variables. The key is the name the way it was used in the route's path. In this example the third route would contain a value for the key `bookId`.
 
-# Add custom middleware
+## Add custom middleware
 
 ```go
 import (
