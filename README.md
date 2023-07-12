@@ -1,5 +1,12 @@
 # http-router
 
+The module provides an HTTP router that integrates with Go's `net/http` package. That means the application code uses `http.ResponseWriter` and `http.Request` from Go's standard library.  
+It supports
+- path variables
+- custom middleware functions
+
+***Currently the module is not intended to be used in production.***
+
 ## Usage
 
 A simple server could look like this:
@@ -32,7 +39,7 @@ import (
     "github.com/gossie/router"
 )
 
-func trackRequestRuntime(handler router.HttpHandler) router.HttpHandler {
+func logRequestTime(handler router.HttpHandler) router.HttpHandler {
     return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
         start := time.Now()
         defer func() {
@@ -46,7 +53,7 @@ func trackRequestRuntime(handler router.HttpHandler) router.HttpHandler {
 func main() {
     router := router.New()
 
-    router.Use(trackRequestRuntime)
+    router.Use(logRequestTime)
 
     router.Get("/books", getBooksHandler)
     router.Post("/books", createBookHandler)
