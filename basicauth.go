@@ -1,9 +1,7 @@
-package middleware
+package router
 
 import (
 	"net/http"
-
-	"github.com/gossie/router"
 )
 
 type UserData struct {
@@ -24,17 +22,18 @@ func (ud *UserData) Password() string {
 
 type UserChecker = func(*UserData) bool
 
-func BasicAuth(userChecker UserChecker) router.Middleware {
-	return func(next router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, pathVariables map[string]string) {
-			performBasicAuth(w, r, pathVariables, userChecker, next)
+func BasicAuth(userChecker UserChecker) Middleware {
+	return func(next HttpHandler) HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *Context) {
+			performBasicAuth(w, r, ctx, userChecker, next)
 		}
 	}
 }
 
-func performBasicAuth(w http.ResponseWriter, r *http.Request, pathVariables map[string]string, userChecker UserChecker, next router.HttpHandler) {
+func performBasicAuth(w http.ResponseWriter, r *http.Request, ctx *Context, userChecker UserChecker, next HttpHandler) {
 	if user, pass, ok := r.BasicAuth(); ok && userChecker(newUserData(user, pass)) {
-		next(w, r, pathVariables)
+		ctx.username = user
+		next(w, r, ctx)
 		return
 	}
 	http.Error(w, "", http.StatusUnauthorized)

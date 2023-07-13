@@ -15,7 +15,7 @@ const (
 	PATCH  = "PATCH"
 )
 
-type HttpHandler = func(http.ResponseWriter, *http.Request, map[string]string)
+type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 
 type Middleware = func(HttpHandler) HttpHandler
 
@@ -63,7 +63,7 @@ func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) {
 }
 
 func (h *HttpRouter) Handle(path string, handler http.Handler) {
-	h.addRoute(path, GET, func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+	h.addRoute(path, GET, func(w http.ResponseWriter, r *http.Request, _ *Context) {
 		w.Header().Set("Cache-Control", "public, maxage=86400, s-maxage=86400, immutable")
 		w.Header().Set("Expires", time.Now().Add(86400*time.Second).Local().Format("Mon, 02 Jan 2006 15:04:05 MST"))
 		handler.ServeHTTP(w, r)
@@ -100,7 +100,7 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if tree, present := h.routes[r.Method]; present {
 		currentNode := tree.root
 		if r.URL.Path == "/" {
-			currentNode.route.handler(w, r, pathVariables)
+			currentNode.route.handler(w, r, newContext(pathVariables))
 			return
 		}
 
@@ -118,7 +118,7 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			for i := len(h.middlewareFunctions) - 1; i >= 0; i-- {
 				handlerToExceute = h.middlewareFunctions[i](handlerToExceute)
 			}
-			handlerToExceute(w, r, pathVariables)
+			handlerToExceute(w, r, newContext(pathVariables))
 			return
 		}
 	}
