@@ -106,7 +106,7 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		for _, el := range strings.Split(r.URL.Path, "/") {
 			if el != "" && currentNode != nil {
-				currentNode = currentNode.getNode(el)
+				currentNode = currentNode.getChildNode(el)
 				if currentNode != nil && currentNode.nodeType == "var" {
 					pathVariables[currentNode.pathElement] = el
 				}

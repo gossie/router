@@ -51,7 +51,7 @@ func (n *node) createOrGetVarChild(el string) (*node, error) {
 	return newNode, nil
 }
 
-func (n *node) getNode(el string) *node {
+func (n *node) getChildNode(el string) *node {
 	if len(n.children) == 1 {
 		for _, child := range n.children {
 			if child.nodeType == "var" {
