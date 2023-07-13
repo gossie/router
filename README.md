@@ -55,7 +55,7 @@ func main() {
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
 
-	httpRouter.Use(router.BasicAuth(userChecker))
+    httpRouter.Use(router.BasicAuth(userChecker))
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
