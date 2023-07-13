@@ -33,40 +33,32 @@ func (w *TestResponseWriter) WriteHeader(statusCode int) {
 }
 
 func TestBasicAuth_noAuthData(t *testing.T) {
-	users := []*middleware.UserData{
-		middleware.NewUserData("user1", "password1"),
-		middleware.NewUserData("user2", "password2"),
-		middleware.NewUserData("user3", "password3"),
-	}
-
-	testRouter := router.New()
-	testRouter.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+	router := router.New()
+	router.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
 		w.WriteHeader(200)
 	})
-	testRouter.Use(middleware.BasicAuth(users))
+	router.Use(middleware.BasicAuth(nil))
 
 	w := &TestResponseWriter{}
 	r := &http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/protected"},
 	}
-	testRouter.ServeHTTP(w, r)
+	router.ServeHTTP(w, r)
 
 	assert.Equal(t, 401, w.statusCode)
 }
 
 func TestBasicAuth_wrongAuthData(t *testing.T) {
-	users := []*middleware.UserData{
-		middleware.NewUserData("user1", "password1"),
-		middleware.NewUserData("user2", "password2"),
-		middleware.NewUserData("user3", "password3"),
+	userChecker := func(us *middleware.UserData) bool {
+		return us.Username() == "user2" && us.Password() == "password2"
 	}
 
-	testRouter := router.New()
-	testRouter.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+	router := router.New()
+	router.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
 		w.WriteHeader(200)
 	})
-	testRouter.Use(middleware.BasicAuth(users))
+	router.Use(middleware.BasicAuth(userChecker))
 
 	userStr := base64.StdEncoding.EncodeToString([]byte("user2:wrong"))
 
@@ -76,23 +68,21 @@ func TestBasicAuth_wrongAuthData(t *testing.T) {
 		URL:    &url.URL{Path: "/protected"},
 		Header: map[string][]string{"Authorization": {"Basic " + userStr}},
 	}
-	testRouter.ServeHTTP(w, r)
+	router.ServeHTTP(w, r)
 
 	assert.Equal(t, 401, w.statusCode)
 }
 
 func TestBasicAuth_correctAuthData(t *testing.T) {
-	users := []*middleware.UserData{
-		middleware.NewUserData("user1", "password1"),
-		middleware.NewUserData("user2", "password2"),
-		middleware.NewUserData("user3", "password3"),
+	userChecker := func(us *middleware.UserData) bool {
+		return us.Username() == "user2" && us.Password() == "password2"
 	}
 
-	testRouter := router.New()
-	testRouter.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+	router := router.New()
+	router.Get("/protected", func(w http.ResponseWriter, r *http.Request, m map[string]string) {
 		w.WriteHeader(200)
 	})
-	testRouter.Use(middleware.BasicAuth(users))
+	router.Use(middleware.BasicAuth(userChecker))
 
 	userStr := base64.StdEncoding.EncodeToString([]byte("user2:password2"))
 
@@ -102,7 +92,7 @@ func TestBasicAuth_correctAuthData(t *testing.T) {
 		URL:    &url.URL{Path: "/protected"},
 		Header: map[string][]string{"Authorization": {"Basic " + userStr}},
 	}
-	testRouter.ServeHTTP(w, r)
+	router.ServeHTTP(w, r)
 
 	assert.Equal(t, 200, w.statusCode)
 }

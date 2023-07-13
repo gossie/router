@@ -10,22 +10,32 @@ type UserData struct {
 	username, password string
 }
 
-func NewUserData(username, password string) *UserData {
+func newUserData(username, password string) *UserData {
 	return &UserData{username, password}
 }
 
-func BasicAuth(users []*UserData) func(router.HttpHandler) router.HttpHandler {
-	return func(in router.HttpHandler) router.HttpHandler {
+func (ud *UserData) Username() string {
+	return ud.username
+}
+
+func (ud *UserData) Password() string {
+	return ud.password
+}
+
+type UserChecker = func(*UserData) bool
+
+func BasicAuth(userChecker UserChecker) router.Middleware {
+	return func(next router.HttpHandler) router.HttpHandler {
 		return func(w http.ResponseWriter, r *http.Request, pathVariables map[string]string) {
-			if user, pass, ok := r.BasicAuth(); ok {
-				for _, ud := range users {
-					if user == ud.username && pass == ud.password {
-						in(w, r, pathVariables)
-						return
-					}
-				}
-			}
-			http.Error(w, "", http.StatusUnauthorized)
+			performBasicAuth(w, r, pathVariables, userChecker, next)
 		}
 	}
+}
+
+func performBasicAuth(w http.ResponseWriter, r *http.Request, pathVariables map[string]string, userChecker UserChecker, next router.HttpHandler) {
+	if user, pass, ok := r.BasicAuth(); ok && userChecker(newUserData(user, pass)) {
+		next(w, r, pathVariables)
+		return
+	}
+	http.Error(w, "", http.StatusUnauthorized)
 }
