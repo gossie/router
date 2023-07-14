@@ -238,3 +238,58 @@ func TestMiddleware(t *testing.T) {
 	assert.Equal(t, "middleware2", executed[1])
 	assert.Equal(t, "get", executed[2])
 }
+
+func TestMiddlewareForSingleRoute(t *testing.T) {
+	executed := make([]string, 0)
+
+	middleware1 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+			executed = append(executed, "middleware1")
+			in(w, r, ctx)
+		}
+	}
+
+	middleware2 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+			executed = append(executed, "middleware2")
+			in(w, r, ctx)
+		}
+	}
+
+	testRouter := router.New()
+
+	testRouter.Use(middleware1)
+
+	testRouter.Get("/test1", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+		executed = append(executed, "test1")
+	})
+
+	testRouter.Get("/test2", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+		executed = append(executed, "test2")
+	}).Use(middleware2)
+
+	w := &TestResponseWriter{}
+	r1 := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/test1"},
+	}
+	r2 := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/test2"},
+	}
+
+	testRouter.ServeHTTP(w, r1)
+
+	assert.Equal(t, 2, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "test1", executed[1])
+
+	testRouter.ServeHTTP(w, r2)
+
+	assert.Equal(t, 5, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "test1", executed[1])
+	assert.Equal(t, "middleware1", executed[2])
+	assert.Equal(t, "middleware2", executed[3])
+	assert.Equal(t, "test2", executed[4])
+}

@@ -20,7 +20,17 @@ type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 type Middleware = func(HttpHandler) HttpHandler
 
 type route struct {
-	handler HttpHandler
+	handler             HttpHandler
+	middlewareFunctions []Middleware
+}
+
+func newRoute(handler HttpHandler) *route {
+	return &route{handler, make([]Middleware, 0)}
+}
+
+func (r *route) Use(middleware Middleware) *route {
+	r.middlewareFunctions = append(r.middlewareFunctions, middleware)
+	return r
 }
 
 type HttpRouter struct {
@@ -32,13 +42,13 @@ func New() *HttpRouter {
 	return &HttpRouter{make(map[string]*pathTree), make([]Middleware, 0)}
 }
 
-func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) {
+func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *route {
 	if _, present := h.routes[method]; !present {
 		h.routes[method] = createPathTree()
 	}
 
 	if path == "/" {
-		h.routes[method].root.route = &route{handler}
+		h.routes[method].root.route = newRoute(handler)
 	}
 
 	currentNode := h.routes[method].root
@@ -57,9 +67,8 @@ func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) {
 		}
 	}
 
-	if currentNode != nil {
-		currentNode.route = &route{handler}
-	}
+	currentNode.route = newRoute(handler)
+	return currentNode.route
 }
 
 func (h *HttpRouter) Handle(path string, handler http.Handler) {
@@ -70,24 +79,24 @@ func (h *HttpRouter) Handle(path string, handler http.Handler) {
 	})
 }
 
-func (h *HttpRouter) Get(path string, handler HttpHandler) {
-	h.addRoute(path, GET, handler)
+func (h *HttpRouter) Get(path string, handler HttpHandler) *route {
+	return h.addRoute(path, GET, handler)
 }
 
-func (h *HttpRouter) Put(path string, handler HttpHandler) {
-	h.addRoute(path, PUT, handler)
+func (h *HttpRouter) Put(path string, handler HttpHandler) *route {
+	return h.addRoute(path, PUT, handler)
 }
 
-func (h *HttpRouter) Patch(path string, handler HttpHandler) {
-	h.addRoute(path, PATCH, handler)
+func (h *HttpRouter) Patch(path string, handler HttpHandler) *route {
+	return h.addRoute(path, PATCH, handler)
 }
 
-func (h *HttpRouter) Post(path string, handler HttpHandler) {
-	h.addRoute(path, POST, handler)
+func (h *HttpRouter) Post(path string, handler HttpHandler) *route {
+	return h.addRoute(path, POST, handler)
 }
 
-func (h *HttpRouter) Delete(path string, handler HttpHandler) {
-	h.addRoute(path, DELETE, handler)
+func (h *HttpRouter) Delete(path string, handler HttpHandler) *route {
+	return h.addRoute(path, DELETE, handler)
 }
 
 func (h *HttpRouter) Use(middleware Middleware) {
@@ -115,8 +124,11 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			for i := len(h.middlewareFunctions) - 1; i >= 0; i-- {
-				handlerToExceute = h.middlewareFunctions[i](handlerToExceute)
+			allMiddlewareFunctions := make([]Middleware, 0, len(h.middlewareFunctions)+len(currentNode.route.middlewareFunctions))
+			allMiddlewareFunctions = append(allMiddlewareFunctions, h.middlewareFunctions...)
+			allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.route.middlewareFunctions...)
+			for i := len(allMiddlewareFunctions) - 1; i >= 0; i-- {
+				handlerToExceute = allMiddlewareFunctions[i](handlerToExceute)
 			}
 			handlerToExceute(w, r, newContext(pathVariables))
 			return

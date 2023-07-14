@@ -11,11 +11,15 @@ import (
 )
 
 func TestBasicAuth_noAuthData(t *testing.T) {
+	userChecker := func(us *router.UserData) bool {
+		return us.Username() == "user2" && us.Password() == "password2"
+	}
+
 	testRouter := router.New()
 	testRouter.Get("/protected", func(_ http.ResponseWriter, _ *http.Request, _ *router.Context) {
 		assert.Fail(t, "handler must not be called")
 	})
-	testRouter.Use(router.BasicAuth(nil))
+	testRouter.Use(router.BasicAuth(userChecker))
 
 	w := &TestResponseWriter{}
 	r := &http.Request{
