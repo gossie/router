@@ -31,9 +31,45 @@ func main() {
 The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, map[string]string)`
 The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package. The third parameter is a `map` containing the path variables. The key is the name the way it was used in the route's path. In this example the third route would contain a value for the key `bookId`.
 
-## Standard middleware functions
+## Middleware
 
-### Basic auth
+Middleware functions can be used to reuse behaviour that should be executed on every or a couple of request. Typical examples are authentication, request logging, etc.  
+Middleware functions are added with the `Use` method. `Use` can be called directly on the router. Middleware that is added that way will be exexuted for every request. Alternatively `Use` can be called on a created route. That way the middleware will only be executed, if the specific route is called.
+
+```go
+import (
+    "net/http"
+
+    "github.com/gossie/router"
+)
+
+func middleware1(handler router.HttpHandler) router.HttpHandler {
+    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+        // ...
+    }
+}
+
+func middleware2(handler router.HttpHandler) router.HttpHandler {
+    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+        // ...
+    }
+}
+
+func main() {
+    httpRouter := router.New()
+
+    httpRouter.Use(middleware1)
+
+    httpRouter.Get("/test1", publicHandler)
+    httpRouter.Post("/test2", protectedHanlder).Use(middleware2)
+
+    log.Fatal(http.ListenAndServe(":8080", httpRouter))
+}
+```
+
+### Standard middleware functions
+
+#### Basic auth
 
 The module provides a standard middleware function for basic authentication. The line `testRouter.Use(router.BasicAuth(userChecker))` adds basic auth to the router. The `userChecker` is a function that checks if the authentication data is correct.
 
@@ -51,17 +87,17 @@ func main() {
 
     httpRouter := router.New()
 
+    httpRouter.Use(router.BasicAuth(userChecker))
+
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
-
-    httpRouter.Use(router.BasicAuth(userChecker))
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
 
-### Cache headers
+#### Cache headers
 
 The module provides a standard middleware function to activate browser caching. The line `testRouter.Use(router.Cache(1 * time.Hour))` makes sure that the necessary headers are set, so that the reponse is cache one hour by the browser.
 
@@ -75,17 +111,17 @@ import (
 func main() {
     httpRouter := router.New()
 
+    httpRouter.Use(router.Cache(1 * time.Hour))
+
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
-
-    httpRouter.Use(router.Cache(1 * time.Hour))
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
 
-## Add custom middleware
+### Add custom middleware
 
 ```go
 import (
@@ -108,11 +144,11 @@ func logRequestTime(handler router.HttpHandler) router.HttpHandler {
 func main() {
     httpRouter := router.New()
 
+    httpRouter.Use(logRequestTime)
+
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
-
-    httpRouter.Use(logRequestTime)
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
