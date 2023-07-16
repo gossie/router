@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"log"
+	"strings"
 )
 
 type node struct {
@@ -24,14 +25,15 @@ func (n *node) createOrGetStaticChild(el string) (*node, error) {
 		return nil, errors.New("a static path element cannot be added, if there is already a path variable at that position")
 	}
 
-	if child, found := n.children[el]; found && child.nodeType == "static" && child.pathElement == el {
-		log.Default().Println("found static path element", el)
+	pathElement := strings.ToLower(el)
+	if child, found := n.children[pathElement]; found && child.nodeType == "static" && child.pathElement == pathElement {
+		log.Default().Println("found static path element", pathElement)
 		return child, nil
 	}
 
-	log.Default().Println("creating static path element", el)
-	newNode := &node{"static", el, nil, make(map[string]*node)}
-	n.children[el] = newNode
+	log.Default().Println("creating static path element", pathElement)
+	newNode := &node{"static", pathElement, nil, make(map[string]*node)}
+	n.children[pathElement] = newNode
 	return newNode, nil
 }
 
@@ -60,7 +62,7 @@ func (n *node) childNode(el string) *node {
 		}
 	}
 
-	if child, found := n.children[el]; found {
+	if child, found := n.children[strings.ToLower(el)]; found {
 		return child
 	}
 
@@ -72,6 +74,6 @@ type pathTree struct {
 	root *node
 }
 
-func createPathTree() *pathTree {
+func newPathTree() *pathTree {
 	return &pathTree{&node{"root", "", nil, make(map[string]*node)}}
 }
