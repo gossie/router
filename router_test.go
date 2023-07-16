@@ -293,3 +293,24 @@ func TestMiddlewareForSingleRoute(t *testing.T) {
 	assert.Equal(t, "middleware2", executed[3])
 	assert.Equal(t, "test2", executed[4])
 }
+
+func TestRouteCaseInsensitivity(t *testing.T) {
+	executed := false
+
+	testRouter := router.New()
+
+	testRouter.Get("/TEST1/:id/test2", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		assert.Equal(t, "aBc", ctx.PathParameter("id"))
+		executed = true
+	})
+
+	w := &TestResponseWriter{}
+	r := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/tEsT1/aBc/TeSt2"},
+	}
+
+	testRouter.ServeHTTP(w, r)
+
+	assert.True(t, executed)
+}
