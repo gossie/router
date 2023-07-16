@@ -110,9 +110,7 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			allMiddlewareFunctions := make([]Middleware, 0, len(h.middlewareFunctions)+len(currentNode.route.middlewareFunctions))
-			allMiddlewareFunctions = append(allMiddlewareFunctions, h.middlewareFunctions...)
-			allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.route.middlewareFunctions...)
+			allMiddlewareFunctions := append(append(make([]Middleware, 0, len(h.middlewareFunctions)+len(currentNode.route.middlewareFunctions)), h.middlewareFunctions...), currentNode.route.middlewareFunctions...)
 			for i := len(allMiddlewareFunctions) - 1; i >= 0; i-- {
 				handlerToExceute = allMiddlewareFunctions[i](handlerToExceute)
 			}
