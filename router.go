@@ -30,7 +30,7 @@ func New() *HttpRouter {
 
 func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *route {
 	if _, present := h.routes[method]; !present {
-		h.routes[method] = createPathTree()
+		h.routes[method] = newPathTree()
 	}
 
 	if path == "/" {
