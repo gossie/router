@@ -19,20 +19,6 @@ type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 
 type Middleware = func(HttpHandler) HttpHandler
 
-type route struct {
-	handler             HttpHandler
-	middlewareFunctions []Middleware
-}
-
-func newRoute(handler HttpHandler) *route {
-	return &route{handler, make([]Middleware, 0)}
-}
-
-func (r *route) Use(middleware Middleware) *route {
-	r.middlewareFunctions = append(r.middlewareFunctions, middleware)
-	return r
-}
-
 type HttpRouter struct {
 	routes              map[string]*pathTree
 	middlewareFunctions []Middleware
