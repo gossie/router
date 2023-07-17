@@ -8,6 +8,16 @@ It supports
 
 ***Currently the module is not intended to be used in production.***
 
+## But why ...
+
+There are already a lot of mux implementations. But after a brief search I only found implementations that did not match my requirements oder that overfullfill them.
+The things I wanted were
+- path variables
+- built-in middleware support
+- I wanted to stay as close to Go's `net/http` package as possible
+
+And last but certainly not least: **It's a lot of fun to implement such a thing yourself!**
+
 ## Usage
 
 A simple server could look like this:
@@ -28,7 +38,7 @@ func main() {
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
-The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, map[string]string)`
+The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, *router.Context)`
 The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package. The third parameter is a `map` containing the path variables. The key is the name the way it was used in the route's path. In this example the third route would contain a value for the key `bookId`.
 
 ## Middleware
@@ -44,13 +54,13 @@ import (
 )
 
 func middleware1(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
         // ...
     }
 }
 
 func middleware2(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
         // ...
     }
 }
@@ -66,6 +76,37 @@ func main() {
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
+
+There is a third way to add a middleware function. It is possible to define a middleware function for a certain path and HTTP method.
+
+```go
+import (
+    "net/http"
+
+    "github.com/gossie/router"
+)
+
+func middleware(handler router.HttpHandler) router.HttpHandler {
+    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+        // ...
+    }
+}
+
+func main() {
+    httpRouter := router.New()
+
+    testRouter.UseRecursively(router.GET, "/tests", middleware)
+
+    httpRouter.Get("/tests", testsHandler)
+    httpRouter.Get("/tests/:testId", singleTestHandler)
+    httpRouter.Get("/tests/:testId/assertions", assertionsHandler)
+    httpRouter.Get("/other", otherHandler)
+
+    log.Fatal(http.ListenAndServe(":8080", httpRouter))
+}
+```
+
+The code makes sure that the middleware function is executed for `GET` request targeting `/tests`, `/tests/:testId` and `/tests/:testId/assertions`. It won't be executed when `/other` is called.
 
 ### Standard middleware functions
 
@@ -131,7 +172,7 @@ import (
 )
 
 func logRequestTime(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
         start := time.Now()
         defer func() {
             log.Default().Println("request took", time.Since(start).Milliseconds(), "ms")

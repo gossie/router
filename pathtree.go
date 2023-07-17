@@ -11,6 +11,7 @@ type node struct {
 	pathElement string
 	route       *route
 	children    map[string]*node
+	middleware  []Middleware
 }
 
 func (n *node) createOrGetStaticChild(el string) (*node, error) {
@@ -32,7 +33,7 @@ func (n *node) createOrGetStaticChild(el string) (*node, error) {
 	}
 
 	log.Default().Println("creating static path element", pathElement)
-	newNode := &node{"static", pathElement, nil, make(map[string]*node)}
+	newNode := &node{"static", pathElement, nil, make(map[string]*node), make([]Middleware, 0)}
 	n.children[pathElement] = newNode
 	return newNode, nil
 }
@@ -48,7 +49,7 @@ func (n *node) createOrGetVarChild(el string) (*node, error) {
 	}
 
 	log.Default().Println("creating variable path element", el)
-	newNode := &node{"var", el, nil, make(map[string]*node)}
+	newNode := &node{"var", el, nil, make(map[string]*node), make([]Middleware, 0)}
 	n.children[el] = newNode
 	return newNode, nil
 }
@@ -75,5 +76,5 @@ type pathTree struct {
 }
 
 func newPathTree() *pathTree {
-	return &pathTree{&node{"root", "", nil, make(map[string]*node)}}
+	return &pathTree{&node{"root", "", nil, make(map[string]*node), make([]Middleware, 0)}}
 }

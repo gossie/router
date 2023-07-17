@@ -19,23 +19,9 @@ type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 
 type Middleware = func(HttpHandler) HttpHandler
 
-type route struct {
-	handler             HttpHandler
-	middlewareFunctions []Middleware
-}
-
-func newRoute(handler HttpHandler) *route {
-	return &route{handler, make([]Middleware, 0)}
-}
-
-func (r *route) Use(middleware Middleware) *route {
-	r.middlewareFunctions = append(r.middlewareFunctions, middleware)
-	return r
-}
-
 type HttpRouter struct {
-	routes              map[string]*pathTree
-	middlewareFunctions []Middleware
+	routes     map[string]*pathTree
+	middleware []Middleware
 }
 
 func New() *HttpRouter {
@@ -43,29 +29,11 @@ func New() *HttpRouter {
 }
 
 func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *route {
-	if _, present := h.routes[method]; !present {
-		h.routes[method] = newPathTree()
-	}
-
-	if path == "/" {
+	rootHandler := func() {
 		h.routes[method].root.route = newRoute(handler)
 	}
 
-	currentNode := h.routes[method].root
-	var err error
-	for _, el := range strings.Split(path, "/") {
-		if el != "" {
-			if strings.HasPrefix(el, ":") {
-				currentNode, err = currentNode.createOrGetVarChild(el[1:])
-			} else {
-				currentNode, err = currentNode.createOrGetStaticChild(el)
-			}
-
-			if err != nil {
-				panic(err.Error())
-			}
-		}
-	}
+	currentNode := h.getCreateOrGetNode(path, method, rootHandler)
 
 	currentNode.route = newRoute(handler)
 	return currentNode.route
@@ -100,7 +68,17 @@ func (h *HttpRouter) Delete(path string, handler HttpHandler) *route {
 }
 
 func (h *HttpRouter) Use(middleware Middleware) {
-	h.middlewareFunctions = append(h.middlewareFunctions, middleware)
+	h.middleware = append(h.middleware, middleware)
+}
+
+func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) {
+	rootHandler := func() {
+		panic("use the Use() method")
+	}
+
+	currentNode := h.getCreateOrGetNode(path, method, rootHandler)
+
+	currentNode.middleware = append(currentNode.middleware, middleware)
 }
 
 func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -113,8 +91,10 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		middlewareToExecute := append(make([]Middleware, 0, len(h.middleware)), h.middleware...)
 		for _, el := range strings.Split(r.URL.Path, "/") {
 			if el != "" && currentNode != nil {
+				middlewareToExecute = append(middlewareToExecute, currentNode.middleware...)
 				currentNode = currentNode.childNode(el)
 				if currentNode != nil && currentNode.nodeType == "var" {
 					pathVariables[currentNode.pathElement] = el
@@ -124,11 +104,9 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			allMiddlewareFunctions := make([]Middleware, 0, len(h.middlewareFunctions)+len(currentNode.route.middlewareFunctions))
-			allMiddlewareFunctions = append(allMiddlewareFunctions, h.middlewareFunctions...)
-			allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.route.middlewareFunctions...)
-			for i := len(allMiddlewareFunctions) - 1; i >= 0; i-- {
-				handlerToExceute = allMiddlewareFunctions[i](handlerToExceute)
+			middlewareToExecute = append(middlewareToExecute, currentNode.route.middleware...)
+			for i := len(middlewareToExecute) - 1; i >= 0; i-- {
+				handlerToExceute = middlewareToExecute[i](handlerToExceute)
 			}
 			handlerToExceute(w, r, newContext(pathVariables))
 			return
@@ -137,4 +115,31 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
 	http.NotFound(w, r)
+}
+
+func (h *HttpRouter) getCreateOrGetNode(path string, method string, rootHandler func()) *node {
+	if _, present := h.routes[method]; !present {
+		h.routes[method] = newPathTree()
+	}
+
+	if path == "/" {
+		rootHandler()
+	}
+
+	currentNode := h.routes[method].root
+	var err error
+	for _, el := range strings.Split(path, "/") {
+		if el != "" {
+			if strings.HasPrefix(el, ":") {
+				currentNode, err = currentNode.createOrGetVarChild(el[1:])
+			} else {
+				currentNode, err = currentNode.createOrGetStaticChild(el)
+			}
+
+			if err != nil {
+				panic(err.Error())
+			}
+		}
+	}
+	return currentNode
 }
