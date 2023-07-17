@@ -7,11 +7,11 @@ import (
 )
 
 type node struct {
-	nodeType            string
-	pathElement         string
-	route               *route
-	children            map[string]*node
-	middlewareFunctions []Middleware
+	nodeType    string
+	pathElement string
+	route       *route
+	children    map[string]*node
+	middleware  []Middleware
 }
 
 func (n *node) createOrGetStaticChild(el string) (*node, error) {

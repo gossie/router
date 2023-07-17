@@ -20,8 +20,8 @@ type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 type Middleware = func(HttpHandler) HttpHandler
 
 type HttpRouter struct {
-	routes              map[string]*pathTree
-	middlewareFunctions []Middleware
+	routes     map[string]*pathTree
+	middleware []Middleware
 }
 
 func New() *HttpRouter {
@@ -68,7 +68,7 @@ func (h *HttpRouter) Delete(path string, handler HttpHandler) *route {
 }
 
 func (h *HttpRouter) Use(middleware Middleware) {
-	h.middlewareFunctions = append(h.middlewareFunctions, middleware)
+	h.middleware = append(h.middleware, middleware)
 }
 
 func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) {
@@ -78,7 +78,7 @@ func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) 
 
 	currentNode := h.getCreateOrGetNode(path, method, rootHandler)
 
-	currentNode.middlewareFunctions = append(currentNode.middlewareFunctions, middleware)
+	currentNode.middleware = append(currentNode.middleware, middleware)
 }
 
 func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -91,10 +91,10 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		allMiddlewareFunctions := append(make([]Middleware, 0, len(h.middlewareFunctions)), h.middlewareFunctions...)
+		middlewareToExecute := append(make([]Middleware, 0, len(h.middleware)), h.middleware...)
 		for _, el := range strings.Split(r.URL.Path, "/") {
 			if el != "" && currentNode != nil {
-				allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.middlewareFunctions...)
+				middlewareToExecute = append(middlewareToExecute, currentNode.middleware...)
 				currentNode = currentNode.childNode(el)
 				if currentNode != nil && currentNode.nodeType == "var" {
 					pathVariables[currentNode.pathElement] = el
@@ -104,9 +104,9 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.route.middlewareFunctions...)
-			for i := len(allMiddlewareFunctions) - 1; i >= 0; i-- {
-				handlerToExceute = allMiddlewareFunctions[i](handlerToExceute)
+			middlewareToExecute = append(middlewareToExecute, currentNode.route.middleware...)
+			for i := len(middlewareToExecute) - 1; i >= 0; i-- {
+				handlerToExceute = middlewareToExecute[i](handlerToExceute)
 			}
 			handlerToExceute(w, r, newContext(pathVariables))
 			return

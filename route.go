@@ -1,8 +1,8 @@
 package router
 
 type route struct {
-	handler             HttpHandler
-	middlewareFunctions []Middleware
+	handler    HttpHandler
+	middleware []Middleware
 }
 
 func newRoute(handler HttpHandler) *route {
@@ -10,6 +10,6 @@ func newRoute(handler HttpHandler) *route {
 }
 
 func (r *route) Use(middleware Middleware) *route {
-	r.middlewareFunctions = append(r.middlewareFunctions, middleware)
+	r.middleware = append(r.middleware, middleware)
 	return r
 }
