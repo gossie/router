@@ -89,6 +89,34 @@ func (h *HttpRouter) Use(middleware Middleware) {
 	h.middlewareFunctions = append(h.middlewareFunctions, middleware)
 }
 
+func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) {
+	if _, present := h.routes[method]; !present {
+		h.routes[method] = newPathTree()
+	}
+
+	if path == "/" {
+		panic("use the Use() method")
+	}
+
+	currentNode := h.routes[method].root
+	var err error
+	for _, el := range strings.Split(path, "/") {
+		if el != "" {
+			if strings.HasPrefix(el, ":") {
+				currentNode, err = currentNode.createOrGetVarChild(el[1:])
+			} else {
+				currentNode, err = currentNode.createOrGetStaticChild(el)
+			}
+
+			if err != nil {
+				panic(err.Error())
+			}
+		}
+	}
+
+	currentNode.middlewareFunctions = append(currentNode.middlewareFunctions, middleware)
+}
+
 func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pathVariables := make(map[string]string)
 
@@ -99,8 +127,10 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		allMiddlewareFunctions := append(make([]Middleware, 0, len(h.middlewareFunctions)), h.middlewareFunctions...)
 		for _, el := range strings.Split(r.URL.Path, "/") {
 			if el != "" && currentNode != nil {
+				allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.middlewareFunctions...)
 				currentNode = currentNode.childNode(el)
 				if currentNode != nil && currentNode.nodeType == "var" {
 					pathVariables[currentNode.pathElement] = el
@@ -110,7 +140,7 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			allMiddlewareFunctions := append(append(make([]Middleware, 0, len(h.middlewareFunctions)+len(currentNode.route.middlewareFunctions)), h.middlewareFunctions...), currentNode.route.middlewareFunctions...)
+			allMiddlewareFunctions = append(allMiddlewareFunctions, currentNode.route.middlewareFunctions...)
 			for i := len(allMiddlewareFunctions) - 1; i >= 0; i-- {
 				handlerToExceute = allMiddlewareFunctions[i](handlerToExceute)
 			}

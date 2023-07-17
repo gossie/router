@@ -294,6 +294,92 @@ func TestMiddlewareForSingleRoute(t *testing.T) {
 	assert.Equal(t, "test2", executed[4])
 }
 
+func TestMiddlewareForGroupOfRoutes(t *testing.T) {
+	executed := make([]string, 0)
+
+	middleware1 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+			executed = append(executed, "middleware1")
+			in(w, r, ctx)
+		}
+	}
+
+	middleware2 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+			executed = append(executed, "middleware2")
+			in(w, r, ctx)
+		}
+	}
+
+	middleware3 := func(in router.HttpHandler) router.HttpHandler {
+		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+			executed = append(executed, "middleware3")
+			in(w, r, ctx)
+		}
+	}
+
+	testRouter := router.New()
+
+	testRouter.Use(middleware1)
+	testRouter.UseRecursively(router.GET, "/tests", middleware2)
+
+	testRouter.Get("/tests/test1", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+		executed = append(executed, "test1")
+	})
+
+	testRouter.Get("/tests/test2", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+		executed = append(executed, "test2")
+	}).Use(middleware3)
+
+	testRouter.Get("/other", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+		executed = append(executed, "other")
+	})
+
+	w := &TestResponseWriter{}
+	r1 := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/tests/test1"},
+	}
+	testRouter.ServeHTTP(w, r1)
+
+	assert.Equal(t, 3, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "middleware2", executed[1])
+	assert.Equal(t, "test1", executed[2])
+
+	r2 := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/tests/test2"},
+	}
+	testRouter.ServeHTTP(w, r2)
+
+	assert.Equal(t, 7, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "middleware2", executed[1])
+	assert.Equal(t, "test1", executed[2])
+	assert.Equal(t, "middleware1", executed[3])
+	assert.Equal(t, "middleware2", executed[4])
+	assert.Equal(t, "middleware3", executed[5])
+	assert.Equal(t, "test2", executed[6])
+
+	r3 := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/other"},
+	}
+	testRouter.ServeHTTP(w, r3)
+
+	assert.Equal(t, 9, len(executed))
+	assert.Equal(t, "middleware1", executed[0])
+	assert.Equal(t, "middleware2", executed[1])
+	assert.Equal(t, "test1", executed[2])
+	assert.Equal(t, "middleware1", executed[3])
+	assert.Equal(t, "middleware2", executed[4])
+	assert.Equal(t, "middleware3", executed[5])
+	assert.Equal(t, "test2", executed[6])
+	assert.Equal(t, "middleware1", executed[7])
+	assert.Equal(t, "other", executed[8])
+}
+
 func TestRouteCaseInsensitivity(t *testing.T) {
 	executed := false
 
