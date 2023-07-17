@@ -29,29 +29,11 @@ func New() *HttpRouter {
 }
 
 func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *route {
-	if _, present := h.routes[method]; !present {
-		h.routes[method] = newPathTree()
-	}
-
-	if path == "/" {
+	rootHandler := func() {
 		h.routes[method].root.route = newRoute(handler)
 	}
 
-	currentNode := h.routes[method].root
-	var err error
-	for _, el := range strings.Split(path, "/") {
-		if el != "" {
-			if strings.HasPrefix(el, ":") {
-				currentNode, err = currentNode.createOrGetVarChild(el[1:])
-			} else {
-				currentNode, err = currentNode.createOrGetStaticChild(el)
-			}
-
-			if err != nil {
-				panic(err.Error())
-			}
-		}
-	}
+	currentNode := h.getCreateOrGetNode(path, method, rootHandler)
 
 	currentNode.route = newRoute(handler)
 	return currentNode.route
@@ -90,29 +72,11 @@ func (h *HttpRouter) Use(middleware Middleware) {
 }
 
 func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) {
-	if _, present := h.routes[method]; !present {
-		h.routes[method] = newPathTree()
-	}
-
-	if path == "/" {
+	rootHandler := func() {
 		panic("use the Use() method")
 	}
 
-	currentNode := h.routes[method].root
-	var err error
-	for _, el := range strings.Split(path, "/") {
-		if el != "" {
-			if strings.HasPrefix(el, ":") {
-				currentNode, err = currentNode.createOrGetVarChild(el[1:])
-			} else {
-				currentNode, err = currentNode.createOrGetStaticChild(el)
-			}
-
-			if err != nil {
-				panic(err.Error())
-			}
-		}
-	}
+	currentNode := h.getCreateOrGetNode(path, method, rootHandler)
 
 	currentNode.middlewareFunctions = append(currentNode.middlewareFunctions, middleware)
 }
@@ -151,4 +115,31 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
 	http.NotFound(w, r)
+}
+
+func (h *HttpRouter) getCreateOrGetNode(path string, method string, rootHandler func()) *node {
+	if _, present := h.routes[method]; !present {
+		h.routes[method] = newPathTree()
+	}
+
+	if path == "/" {
+		rootHandler()
+	}
+
+	currentNode := h.routes[method].root
+	var err error
+	for _, el := range strings.Split(path, "/") {
+		if el != "" {
+			if strings.HasPrefix(el, ":") {
+				currentNode, err = currentNode.createOrGetVarChild(el[1:])
+			} else {
+				currentNode, err = currentNode.createOrGetStaticChild(el)
+			}
+
+			if err != nil {
+				panic(err.Error())
+			}
+		}
+	}
+	return currentNode
 }
