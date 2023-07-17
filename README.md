@@ -8,6 +8,8 @@ It supports
 
 ***Currently the module is not intended to be used in production.***
 
+## But why ...
+
 ## Usage
 
 A simple server could look like this:
@@ -66,6 +68,37 @@ func main() {
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
+
+There is a third way to add a middleware function. It is possible to define a middleware function for a certain path and HTTP method.
+
+```go
+import (
+    "net/http"
+
+    "github.com/gossie/router"
+)
+
+func middleware(handler router.HttpHandler) router.HttpHandler {
+    return func(w http.ResponseWriter, r *http.Request, m map[string]string) {
+        // ...
+    }
+}
+
+func main() {
+    httpRouter := router.New()
+
+    testRouter.UseRecursively(router.GET, "/tests", middleware)
+
+    httpRouter.Get("/tests", testsHandler)
+    httpRouter.Get("/tests/:testId", singleTestHandler)
+    httpRouter.Get("/tests/:testId/assertions", assertionsHandler)
+    httpRouter.Get("/other", otherHandler)
+
+    log.Fatal(http.ListenAndServe(":8080", httpRouter))
+}
+```
+
+The code makes sure that the middleware function is executed for `GET` request targeting `/tests`, `/tests/:testId` and `/tests/:testId/assertions`. It won't be executed when `/other` is called.
 
 ### Standard middleware functions
 
