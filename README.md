@@ -6,8 +6,6 @@ It supports
 - standard middleware functions
 - custom middleware functions
 
-***Currently the module is not intended to be used in production.***
-
 ## But why ...
 
 There are already a lot of mux implementations. But after a brief search I only found implementations that did not match my requirements oder that overfullfill them.
