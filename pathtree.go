@@ -6,8 +6,14 @@ import (
 	"strings"
 )
 
+const (
+	NodeTypeRoot = iota
+	NodeTypeStatic
+	NodeTypeVar
+)
+
 type node struct {
-	nodeType    string
+	nodeType    int
 	pathElement string
 	route       *route
 	children    map[string]*node
@@ -15,9 +21,13 @@ type node struct {
 }
 
 func (n *node) createOrGetStaticChild(el string) (*node, error) {
+	if n.children == nil {
+		n.children = make(map[string]*node)
+	}
+
 	foundVariable := false
 	for _, child := range n.children {
-		if child.nodeType == "var" {
+		if child.nodeType == NodeTypeVar {
 			foundVariable = true
 		}
 	}
@@ -27,19 +37,23 @@ func (n *node) createOrGetStaticChild(el string) (*node, error) {
 	}
 
 	pathElement := strings.ToLower(el)
-	if child, found := n.children[pathElement]; found && child.nodeType == "static" && child.pathElement == pathElement {
+	if child, found := n.children[pathElement]; found && child.nodeType == NodeTypeStatic && child.pathElement == pathElement {
 		log.Default().Println("found static path element", pathElement)
 		return child, nil
 	}
 
 	log.Default().Println("creating static path element", pathElement)
-	newNode := &node{"static", pathElement, nil, make(map[string]*node), make([]Middleware, 0)}
+	newNode := &node{nodeType: NodeTypeStatic, pathElement: pathElement}
 	n.children[pathElement] = newNode
 	return newNode, nil
 }
 
 func (n *node) createOrGetVarChild(el string) (*node, error) {
-	if child, found := n.children[el]; found && child.nodeType == "var" && child.pathElement == el {
+	if n.children == nil {
+		n.children = make(map[string]*node)
+	}
+
+	if child, found := n.children[el]; found && child.nodeType == NodeTypeVar && child.pathElement == el {
 		log.Default().Println("found variable path element", el)
 		return child, nil
 	}
@@ -49,7 +63,7 @@ func (n *node) createOrGetVarChild(el string) (*node, error) {
 	}
 
 	log.Default().Println("creating variable path element", el)
-	newNode := &node{"var", el, nil, make(map[string]*node), make([]Middleware, 0)}
+	newNode := &node{nodeType: NodeTypeVar, pathElement: el}
 	n.children[el] = newNode
 	return newNode, nil
 }
@@ -57,7 +71,7 @@ func (n *node) createOrGetVarChild(el string) (*node, error) {
 func (n *node) childNode(el string) *node {
 	if len(n.children) == 1 {
 		for _, child := range n.children {
-			if child.nodeType == "var" {
+			if child.nodeType == NodeTypeVar {
 				return child
 			}
 		}
@@ -76,5 +90,5 @@ type pathTree struct {
 }
 
 func newPathTree() *pathTree {
-	return &pathTree{&node{"root", "", nil, make(map[string]*node), make([]Middleware, 0)}}
+	return &pathTree{&node{nodeType: NodeTypeRoot}}
 }

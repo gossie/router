@@ -6,7 +6,7 @@ type route struct {
 }
 
 func newRoute(handler HttpHandler) *route {
-	return &route{handler, make([]Middleware, 0)}
+	return &route{handler: handler}
 }
 
 func (r *route) Use(middleware Middleware) *route {
