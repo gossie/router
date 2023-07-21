@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,15 +21,19 @@ type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
 type Middleware = func(HttpHandler) HttpHandler
 
 type HttpRouter struct {
+	mutex      sync.RWMutex
 	routes     map[string]*pathTree
 	middleware []Middleware
 }
 
 func New() *HttpRouter {
-	return &HttpRouter{make(map[string]*pathTree), make([]Middleware, 0)}
+	return &HttpRouter{routes: make(map[string]*pathTree)}
 }
 
 func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *route {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	rootHandler := func() {
 		h.routes[method].root.route = newRoute(handler)
 	}
@@ -68,10 +73,16 @@ func (h *HttpRouter) Delete(path string, handler HttpHandler) *route {
 }
 
 func (h *HttpRouter) Use(middleware Middleware) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	h.middleware = append(h.middleware, middleware)
 }
 
 func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	rootHandler := func() {
 		panic("use the Use() method")
 	}
@@ -82,21 +93,27 @@ func (h *HttpRouter) UseRecursively(method, path string, middleware Middleware) 
 }
 
 func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	pathVariables := make(map[string]string)
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	var pathVariables map[string]string
 
 	if tree, present := h.routes[r.Method]; present {
 		currentNode := tree.root
 		if r.URL.Path == "/" {
-			currentNode.route.handler(w, r, newContext(pathVariables))
+			currentNode.route.handler(w, r, nil)
 			return
 		}
 
-		middlewareToExecute := append(make([]Middleware, 0, len(h.middleware)), h.middleware...)
+		middlewareToExecute := appendMiddlewareIfNeeded(nil, h.middleware)
 		for _, el := range strings.Split(r.URL.Path, "/") {
 			if el != "" && currentNode != nil {
-				middlewareToExecute = append(middlewareToExecute, currentNode.middleware...)
+				middlewareToExecute = appendMiddlewareIfNeeded(middlewareToExecute, currentNode.middleware)
 				currentNode = currentNode.childNode(el)
-				if currentNode != nil && currentNode.nodeType == "var" {
+				if currentNode != nil && currentNode.nodeType == NodeTypeVar {
+					if pathVariables == nil {
+						pathVariables = map[string]string{}
+					}
 					pathVariables[currentNode.pathElement] = el
 				}
 			}
@@ -104,11 +121,13 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if currentNode != nil && currentNode.route != nil {
 			handlerToExceute := currentNode.route.handler
-			middlewareToExecute = append(middlewareToExecute, currentNode.route.middleware...)
+			middlewareToExecute = appendMiddlewareIfNeeded(middlewareToExecute, currentNode.route.middleware)
 			for i := len(middlewareToExecute) - 1; i >= 0; i-- {
 				handlerToExceute = middlewareToExecute[i](handlerToExceute)
 			}
+
 			handlerToExceute(w, r, newContext(pathVariables))
+
 			return
 		}
 	}
@@ -142,4 +161,11 @@ func (h *HttpRouter) getCreateOrGetNode(path string, method string, rootHandler 
 		}
 	}
 	return currentNode
+}
+
+func appendMiddlewareIfNeeded(current []Middleware, source []Middleware) []Middleware {
+	if len(source) > 0 {
+		return append(current, source...)
+	}
+	return current
 }
