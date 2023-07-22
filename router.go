@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	GET    = "GET"
-	POST   = "POST"
-	PUT    = "PUT"
-	DELETE = "DELETE"
-	PATCH  = "PATCH"
+	GET       = "GET"
+	POST      = "POST"
+	PUT       = "PUT"
+	DELETE    = "DELETE"
+	PATCH     = "PATCH"
+	SEPARATOR = "/"
 )
 
 type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
@@ -96,44 +97,57 @@ func (h *HttpRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
-	var pathVariables map[string]string
+	var pathVariables []pathParam
 
 	if tree, present := h.routes[r.Method]; present {
 		currentNode := tree.root
-		if r.URL.Path == "/" {
-			currentNode.route.handler(w, r, nil)
+		if r.URL.Path == SEPARATOR {
+			currentNode.route.handler(w, r, newContext(nil))
 			return
 		}
 
 		middlewareToExecute := appendMiddlewareIfNeeded(nil, h.middleware)
-		for _, el := range strings.Split(r.URL.Path, "/") {
-			if el != "" && currentNode != nil {
+
+		currentPath := r.URL.Path[1:]
+		index := strings.Index(currentPath, SEPARATOR)
+		for index > 0 || currentPath != "" {
+			var el string
+			if index < 0 {
+				el = currentPath
+				currentPath = ""
+			} else {
+				el = currentPath[0:index]
+				currentPath = currentPath[index+1:]
+			}
+
+			if currentNode != nil {
 				middlewareToExecute = appendMiddlewareIfNeeded(middlewareToExecute, currentNode.middleware)
 				currentNode = currentNode.childNode(el)
 				if currentNode != nil && currentNode.nodeType == NodeTypeVar {
 					if pathVariables == nil {
-						pathVariables = map[string]string{}
+						pathVariables = make([]pathParam, 0, 5) // TODO: find a way to get the needed slice size
 					}
-					pathVariables[currentNode.pathElement] = el
+					pathVariables = append(pathVariables, pathParam{name: currentNode.pathElement, value: el})
 				}
 			}
+
+			index = strings.Index(currentPath, SEPARATOR)
 		}
 
-		if currentNode != nil && currentNode.route != nil {
-			handlerToExceute := currentNode.route.handler
-			middlewareToExecute = appendMiddlewareIfNeeded(middlewareToExecute, currentNode.route.middleware)
-			for i := len(middlewareToExecute) - 1; i >= 0; i-- {
-				handlerToExceute = middlewareToExecute[i](handlerToExceute)
-			}
-
-			handlerToExceute(w, r, newContext(pathVariables))
-
+		if currentNode == nil || currentNode.route == nil {
+			log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
+			http.NotFound(w, r)
 			return
 		}
-	}
 
-	log.Default().Println("no", r.Method, "pattern matched", r.URL.Path, "-> returning 404")
-	http.NotFound(w, r)
+		handlerToExceute := currentNode.route.handler
+		middlewareToExecute = appendMiddlewareIfNeeded(middlewareToExecute, currentNode.route.middleware)
+		for i := len(middlewareToExecute) - 1; i >= 0; i-- {
+			handlerToExceute = middlewareToExecute[i](handlerToExceute)
+		}
+
+		handlerToExceute(w, r, newContext(pathVariables))
+	}
 }
 
 func (h *HttpRouter) getCreateOrGetNode(path string, method string, rootHandler func()) *node {

@@ -16,13 +16,22 @@ type node struct {
 	nodeType    int
 	pathElement string
 	route       *route
-	children    map[string]*node
+	children    []*node
 	middleware  []Middleware
+}
+
+func contains(nodes []*node, el string) (*node, bool) {
+	for _, n := range nodes {
+		if n.pathElement == el {
+			return n, true
+		}
+	}
+	return nil, false
 }
 
 func (n *node) createOrGetStaticChild(el string) (*node, error) {
 	if n.children == nil {
-		n.children = make(map[string]*node)
+		n.children = make([]*node, 0, 1)
 	}
 
 	foundVariable := false
@@ -37,23 +46,23 @@ func (n *node) createOrGetStaticChild(el string) (*node, error) {
 	}
 
 	pathElement := strings.ToLower(el)
-	if child, found := n.children[pathElement]; found && child.nodeType == NodeTypeStatic && child.pathElement == pathElement {
+	if child, found := contains(n.children, pathElement); found && child.nodeType == NodeTypeStatic && child.pathElement == pathElement {
 		log.Default().Println("found static path element", pathElement)
 		return child, nil
 	}
 
 	log.Default().Println("creating static path element", pathElement)
 	newNode := &node{nodeType: NodeTypeStatic, pathElement: pathElement}
-	n.children[pathElement] = newNode
+	n.children = append(n.children, newNode)
 	return newNode, nil
 }
 
 func (n *node) createOrGetVarChild(el string) (*node, error) {
 	if n.children == nil {
-		n.children = make(map[string]*node)
+		n.children = make([]*node, 0, 1)
 	}
 
-	if child, found := n.children[el]; found && child.nodeType == NodeTypeVar && child.pathElement == el {
+	if child, found := contains(n.children, el); found && child.nodeType == NodeTypeVar && child.pathElement == el {
 		log.Default().Println("found variable path element", el)
 		return child, nil
 	}
@@ -64,20 +73,16 @@ func (n *node) createOrGetVarChild(el string) (*node, error) {
 
 	log.Default().Println("creating variable path element", el)
 	newNode := &node{nodeType: NodeTypeVar, pathElement: el}
-	n.children[el] = newNode
+	n.children = append(n.children, newNode)
 	return newNode, nil
 }
 
 func (n *node) childNode(el string) *node {
-	if len(n.children) == 1 {
-		for _, child := range n.children {
-			if child.nodeType == NodeTypeVar {
-				return child
-			}
-		}
+	if len(n.children) == 1 && n.children[0].nodeType == NodeTypeVar {
+		return n.children[0]
 	}
 
-	if child, found := n.children[strings.ToLower(el)]; found {
+	if child, found := contains(n.children, strings.ToLower(el)); found {
 		return child
 	}
 
