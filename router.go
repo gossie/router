@@ -17,7 +17,7 @@ const (
 	SEPARATOR = "/"
 )
 
-type HttpHandler = func(http.ResponseWriter, *http.Request, *Context)
+type HttpHandler = func(http.ResponseWriter, *http.Request, Context)
 
 type Middleware = func(HttpHandler) HttpHandler
 
@@ -46,7 +46,7 @@ func (h *HttpRouter) addRoute(path string, method string, handler HttpHandler) *
 }
 
 func (h *HttpRouter) Handle(path string, handler http.Handler) {
-	h.addRoute(path, GET, func(w http.ResponseWriter, r *http.Request, _ *Context) {
+	h.addRoute(path, GET, func(w http.ResponseWriter, r *http.Request, _ Context) {
 		w.Header().Set("Cache-Control", "public, maxage=86400, s-maxage=86400, immutable")
 		w.Header().Set("Expires", time.Now().Add(86400*time.Second).Local().Format("Mon, 02 Jan 2006 15:04:05 MST"))
 		handler.ServeHTTP(w, r)

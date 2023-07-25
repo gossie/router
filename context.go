@@ -9,8 +9,8 @@ type Context struct {
 	username       string
 }
 
-func newContext(pathParameters []pathParam) *Context {
-	return &Context{
+func newContext(pathParameters []pathParam) Context {
+	return Context{
 		pathParameters: pathParameters,
 	}
 }

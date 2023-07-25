@@ -3,7 +3,6 @@ package router
 import (
 	"errors"
 	"log"
-	"strings"
 )
 
 const (
@@ -45,7 +44,7 @@ func (n *node) createOrGetStaticChild(el string) (*node, error) {
 		return nil, errors.New("a static path element cannot be added, if there is already a path variable at that position")
 	}
 
-	pathElement := strings.ToLower(el)
+	pathElement := el
 	if child, found := contains(n.children, pathElement); found && child.nodeType == NodeTypeStatic && child.pathElement == pathElement {
 		log.Default().Println("found static path element", pathElement)
 		return child, nil
@@ -82,7 +81,7 @@ func (n *node) childNode(el string) *node {
 		return n.children[0]
 	}
 
-	if child, found := contains(n.children, strings.ToLower(el)); found {
+	if child, found := contains(n.children, el); found {
 		return child
 	}
 
