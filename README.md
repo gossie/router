@@ -36,7 +36,7 @@ func main() {
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
-The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, *router.Context)`
+The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, router.Context)`
 The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package. The third parameter is a `map` containing the path variables. The key is the name the way it was used in the route's path. In this example the third route would contain a value for the key `bookId`.
 
 ## Middleware
@@ -52,13 +52,13 @@ import (
 )
 
 func middleware1(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
         // ...
     }
 }
 
 func middleware2(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
         // ...
     }
 }
@@ -85,7 +85,7 @@ import (
 )
 
 func middleware(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
         // ...
     }
 }
@@ -170,7 +170,7 @@ import (
 )
 
 func logRequestTime(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
         start := time.Now()
         defer func() {
             log.Default().Println("request took", time.Since(start).Milliseconds(), "ms")

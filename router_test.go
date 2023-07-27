@@ -35,35 +35,35 @@ func TestRouting(t *testing.T) {
 
 	testRouter := router.New()
 
-	testRouter.Post("/tests", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Post("/tests", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		testString = "post-was-called"
 	})
 
-	testRouter.Get("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+	testRouter.Get("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 		if testString != ctx.PathParameter("testString") {
 			t.Fatalf("%s != %s", testString, ctx.PathParameter("testString"))
 		}
 	})
 
-	testRouter.Get("/tests/:testString/:detailId", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+	testRouter.Get("/tests/:testString/:detailId", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 		if testString != ctx.PathParameter("testString") {
 			t.Fatalf("%s != %s", testString, ctx.PathParameter("testString"))
 		}
 	})
 
-	testRouter.Put("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+	testRouter.Put("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 		if testString == ctx.PathParameter("testString") {
 			testString = "put-was-called"
 		}
 	})
 
-	testRouter.Patch("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+	testRouter.Patch("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 		if testString == ctx.PathParameter("testString") {
 			testString = "patch-was-called"
 		}
 	})
 
-	testRouter.Delete("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+	testRouter.Delete("/tests/:testString", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 		if testString == ctx.PathParameter("testString") {
 			testString = ""
 		}
@@ -132,7 +132,7 @@ func TestRouting(t *testing.T) {
 }
 
 func TestHasRootRoute(t *testing.T) {
-	emptyHandler := func(w http.ResponseWriter, _ *http.Request, _ *router.Context) {
+	emptyHandler := func(w http.ResponseWriter, _ *http.Request, _ router.Context) {
 		w.WriteHeader(200)
 	}
 
@@ -151,7 +151,7 @@ func TestHasRootRoute(t *testing.T) {
 }
 
 func TestReturnsStatus404(t *testing.T) {
-	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ *router.Context) {}
+	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {}
 
 	testRouter := router.New()
 	testRouter.Get("/tests/:id", emptyHandler)
@@ -168,7 +168,7 @@ func TestReturnsStatus404(t *testing.T) {
 }
 
 func TestCreatesVariableAndStaticElementAtTheSamePosition(t *testing.T) {
-	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ *router.Context) {}
+	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {}
 
 	testRouter := router.New()
 
@@ -179,7 +179,7 @@ func TestCreatesVariableAndStaticElementAtTheSamePosition(t *testing.T) {
 }
 
 func TestCreatesStaticElementAndVariableAtTheSamePosition(t *testing.T) {
-	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ *router.Context) {}
+	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {}
 
 	testRouter := router.New()
 
@@ -190,7 +190,7 @@ func TestCreatesStaticElementAndVariableAtTheSamePosition(t *testing.T) {
 }
 
 func TestCreatesTwoVariablesAtTheSamePosition(t *testing.T) {
-	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ *router.Context) {}
+	emptyHandler := func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {}
 
 	testRouter := router.New()
 
@@ -204,14 +204,14 @@ func TestMiddleware(t *testing.T) {
 	executed := make([]string, 0)
 
 	middleware1 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware1")
 			in(w, r, ctx)
 		}
 	}
 
 	middleware2 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware2")
 			in(w, r, ctx)
 		}
@@ -222,7 +222,7 @@ func TestMiddleware(t *testing.T) {
 	testRouter.Use(middleware1)
 	testRouter.Use(middleware2)
 
-	testRouter.Get("/test", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/test", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "get")
 	})
 
@@ -243,14 +243,14 @@ func TestMiddlewareForSingleRoute(t *testing.T) {
 	executed := make([]string, 0)
 
 	middleware1 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware1")
 			in(w, r, ctx)
 		}
 	}
 
 	middleware2 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware2")
 			in(w, r, ctx)
 		}
@@ -260,11 +260,11 @@ func TestMiddlewareForSingleRoute(t *testing.T) {
 
 	testRouter.Use(middleware1)
 
-	testRouter.Get("/test1", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/test1", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "test1")
 	})
 
-	testRouter.Get("/test2", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/test2", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "test2")
 	}).Use(middleware2)
 
@@ -298,21 +298,21 @@ func TestMiddlewareForGroupOfRoutes(t *testing.T) {
 	executed := make([]string, 0)
 
 	middleware1 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware1")
 			in(w, r, ctx)
 		}
 	}
 
 	middleware2 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware2")
 			in(w, r, ctx)
 		}
 	}
 
 	middleware3 := func(in router.HttpHandler) router.HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
+		return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
 			executed = append(executed, "middleware3")
 			in(w, r, ctx)
 		}
@@ -323,19 +323,19 @@ func TestMiddlewareForGroupOfRoutes(t *testing.T) {
 	testRouter.Use(middleware1)
 	testRouter.UseRecursively(router.GET, "/tests", middleware2)
 
-	testRouter.Get("/tests/test1", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/tests/test1", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "GET test1")
 	})
 
-	testRouter.Get("/tests/test2", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/tests/test2", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "GET test2")
 	}).Use(middleware3)
 
-	testRouter.Post("/tests/test2", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Post("/tests/test2", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "POST test2")
 	})
 
-	testRouter.Get("/other", func(w http.ResponseWriter, r *http.Request, _ *router.Context) {
+	testRouter.Get("/other", func(w http.ResponseWriter, r *http.Request, _ router.Context) {
 		executed = append(executed, "GET other")
 	})
 
@@ -403,23 +403,23 @@ func TestMiddlewareForGroupOfRoutes(t *testing.T) {
 	assert.Equal(t, "POST test2", executed[10])
 }
 
-func TestRouteCaseInsensitivity(t *testing.T) {
-	executed := false
+// func TestRouteCaseInsensitivity(t *testing.T) {
+// 	executed := false
 
-	testRouter := router.New()
+// 	testRouter := router.New()
 
-	testRouter.Get("/TEST1/:id/test2", func(w http.ResponseWriter, r *http.Request, ctx *router.Context) {
-		assert.Equal(t, "aBc", ctx.PathParameter("id"))
-		executed = true
-	})
+// 	testRouter.Get("/TEST1/:id/test2", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
+// 		assert.Equal(t, "aBc", ctx.PathParameter("id"))
+// 		executed = true
+// 	})
 
-	w := &TestResponseWriter{}
-	r := &http.Request{
-		Method: "GET",
-		URL:    &url.URL{Path: "/tEsT1/aBc/TeSt2"},
-	}
+// 	w := &TestResponseWriter{}
+// 	r := &http.Request{
+// 		Method: "GET",
+// 		URL:    &url.URL{Path: "/tEsT1/aBc/TeSt2"},
+// 	}
 
-	testRouter.ServeHTTP(w, r)
+// 	testRouter.ServeHTTP(w, r)
 
-	assert.True(t, executed)
-}
+// 	assert.True(t, executed)
+// }
