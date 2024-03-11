@@ -1,8 +1,13 @@
 package router
 
 import (
+	"context"
 	"net/http"
 )
+
+type usernamekey string
+
+const UsernameKey = usernamekey("username")
 
 type UserData struct {
 	username, password string
@@ -24,16 +29,16 @@ type UserChecker = func(*UserData) bool
 
 func BasicAuth(userChecker UserChecker) Middleware {
 	return func(next HttpHandler) HttpHandler {
-		return func(w http.ResponseWriter, r *http.Request, ctx Context) {
-			performBasicAuth(w, r, ctx, userChecker, next)
+		return func(w http.ResponseWriter, r *http.Request) {
+			performBasicAuth(w, r, userChecker, next)
 		}
 	}
 }
 
-func performBasicAuth(w http.ResponseWriter, r *http.Request, ctx Context, userChecker UserChecker, next HttpHandler) {
+func performBasicAuth(w http.ResponseWriter, r *http.Request, userChecker UserChecker, next HttpHandler) {
 	if user, pass, ok := r.BasicAuth(); ok && userChecker(newUserData(user, pass)) {
-		ctx.username = user
-		next(w, r, ctx)
+
+		next(w, r.WithContext(context.WithValue(r.Context(), UsernameKey, user)))
 		return
 	}
 	http.Error(w, "", http.StatusUnauthorized)

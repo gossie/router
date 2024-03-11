@@ -2,7 +2,6 @@
 
 The module provides an HTTP router that integrates with Go's `net/http` package. That means the application code uses `http.ResponseWriter` and `http.Request` from Go's standard library.  
 It supports
-- path variables
 - standard middleware functions
 - custom middleware functions
 
@@ -11,10 +10,13 @@ It supports
 There are already a lot of mux implementations. But after a brief search I only found implementations that did not match my requirements oder that overfullfill them.
 The things I wanted were
 - path variables
+- routes for certain methods
 - built-in middleware support
 - I wanted to stay as close to Go's `net/http` package as possible
 
 And last but certainly not least: **It's a lot of fun to implement such a thing yourself!**
+
+Since Go 1.22 the standard http package supports path variables and the possibility to specify a handler for a method-path combination. This HTTP router was migrated to make use of the new standard features. So now it just provides a different (but in my opinion clearer) API and the possibility to define middleware functions.
 
 ## Usage
 
@@ -33,11 +35,13 @@ func main() {
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
 
+    httpRouter.FinishSetup()
+
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
-The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request, router.Context)`
-The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package. The third parameter is a `map` containing the path variables. The key is the name the way it was used in the route's path. In this example the third route would contain a value for the key `bookId`.
+The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request)`
+The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package.
 
 ## Middleware
 
@@ -52,13 +56,13 @@ import (
 )
 
 func middleware1(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
+    return func(w http.ResponseWriter, r *http.Request) {
         // ...
     }
 }
 
 func middleware2(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
+    return func(w http.ResponseWriter, r *http.Request) {
         // ...
     }
 }
@@ -71,46 +75,17 @@ func main() {
     httpRouter.Get("/test1", publicHandler)
     httpRouter.Post("/test2", protectedHanlder).Use(middleware2)
 
-    log.Fatal(http.ListenAndServe(":8080", httpRouter))
-}
-```
-
-There is a third way to add a middleware function. It is possible to define a middleware function for a certain path and HTTP method.
-
-```go
-import (
-    "net/http"
-
-    "github.com/gossie/router"
-)
-
-func middleware(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
-        // ...
-    }
-}
-
-func main() {
-    httpRouter := router.New()
-
-    testRouter.UseRecursively(router.GET, "/tests", middleware)
-
-    httpRouter.Get("/tests", testsHandler)
-    httpRouter.Get("/tests/:testId", singleTestHandler)
-    httpRouter.Get("/tests/:testId/assertions", assertionsHandler)
-    httpRouter.Get("/other", otherHandler)
+    httpRouter.FinishSetup()
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
-
-The code makes sure that the middleware function is executed for `GET` request targeting `/tests`, `/tests/:testId` and `/tests/:testId/assertions`. It won't be executed when `/other` is called.
 
 ### Standard middleware functions
 
 #### Basic auth
 
-The module provides a standard middleware function for basic authentication. The line `testRouter.Use(router.BasicAuth(userChecker))` adds basic auth to the router. The `userChecker` is a function that checks if the authentication data is correct.
+The module provides a standard middleware function for basic authentication. The line `testRouter.Use(router.BasicAuth(userChecker))` adds basic auth to the router. The `userChecker` is a function that checks if the authentication data is correct. If the user was authenticated, the username will be added to the `context` of the request under the key `router.UsernameKey`.
 
 ```go
 import (
@@ -131,6 +106,8 @@ func main() {
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
+
+    httpRouter.FinishSetup()
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
@@ -156,6 +133,8 @@ func main() {
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
 
+    httpRouter.FinishSetup()
+
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
@@ -170,7 +149,7 @@ import (
 )
 
 func logRequestTime(handler router.HttpHandler) router.HttpHandler {
-    return func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
+    return func(w http.ResponseWriter, r *http.Request) {
         start := time.Now()
         defer func() {
             log.Default().Println("request took", time.Since(start).Milliseconds(), "ms")
@@ -188,6 +167,8 @@ func main() {
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
     httpRouter.Get("/books/:bookId", getSingleBookHandler)
+
+    httpRouter.FinishSetup()
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
