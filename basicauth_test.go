@@ -16,10 +16,12 @@ func TestBasicAuth_noAuthData(t *testing.T) {
 	}
 
 	testRouter := router.New()
-	testRouter.Get("/protected", func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {
+	testRouter.Get("/protected", func(_ http.ResponseWriter, _ *http.Request) {
 		assert.Fail(t, "handler must not be called")
 	})
 	testRouter.Use(router.BasicAuth(userChecker))
+
+	testRouter.FinishSetup()
 
 	w := &TestResponseWriter{}
 	r := &http.Request{
@@ -37,10 +39,12 @@ func TestBasicAuth_wrongAuthData(t *testing.T) {
 	}
 
 	testRouter := router.New()
-	testRouter.Get("/protected", func(_ http.ResponseWriter, _ *http.Request, _ router.Context) {
+	testRouter.Get("/protected", func(_ http.ResponseWriter, _ *http.Request) {
 		assert.Fail(t, "handler must not be called")
 	})
 	testRouter.Use(router.BasicAuth(userChecker))
+
+	testRouter.FinishSetup()
 
 	userStr := base64.StdEncoding.EncodeToString([]byte("user2:wrong"))
 
@@ -61,11 +65,13 @@ func TestBasicAuth_correctAuthData(t *testing.T) {
 	}
 
 	testRouter := router.New()
-	testRouter.Get("/protected", func(w http.ResponseWriter, r *http.Request, ctx router.Context) {
-		assert.Equal(t, "user2", ctx.Username())
+	testRouter.Get("/protected", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "user2", r.Context().Value(router.UsernameKey))
 		w.WriteHeader(200)
 	})
 	testRouter.Use(router.BasicAuth(userChecker))
+
+	testRouter.FinishSetup()
 
 	userStr := base64.StdEncoding.EncodeToString([]byte("user2:password2"))
 

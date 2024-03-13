@@ -12,9 +12,11 @@ import (
 
 func TestCache_noCache(t *testing.T) {
 	testRouter := router.New()
-	testRouter.Get("/route", func(w http.ResponseWriter, _ *http.Request, _ router.Context) {
+	testRouter.Get("/route", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	testRouter.FinishSetup()
 
 	w := &TestResponseWriter{}
 	r := &http.Request{
@@ -29,10 +31,12 @@ func TestCache_noCache(t *testing.T) {
 
 func TestCache_cache(t *testing.T) {
 	testRouter := router.New()
-	testRouter.Get("/route", func(w http.ResponseWriter, _ *http.Request, _ router.Context) {
+	testRouter.Get("/route", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 	testRouter.Use(router.Cache(1 * time.Hour))
+
+	testRouter.FinishSetup()
 
 	w := &TestResponseWriter{}
 	r := &http.Request{
