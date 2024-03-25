@@ -33,14 +33,14 @@ func main() {
 
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
-    httpRouter.Get("/books/:bookId", getSingleBookHandler)
+    httpRouter.Get("/books/{bookId}", getSingleBookHandler)
 
     httpRouter.FinishSetup()
 
     log.Fatal(http.ListenAndServe(":8080", httpRouter))
 }
 ```
-The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables start with a `:`. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request)`
+The code creates two `GET` and one `POST` route to retrieve and create books. The first parameter is the path, that may contain path variables. Path variables use Go 1.22's standard syntax. The second parameter is the handler function that handles the request. A handler function must be of the following type: `type HttpHandler func(http.ResponseWriter, *http.Request)`
 The first and second parameter are the `ResponseWriter` and the `Request` of Go's `http` package.
 
 ## Middleware
@@ -105,7 +105,7 @@ func main() {
 
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
-    httpRouter.Get("/books/:bookId", getSingleBookHandler)
+    httpRouter.Get("/books/{bookId}", getSingleBookHandler)
 
     httpRouter.FinishSetup()
 
@@ -131,7 +131,7 @@ func main() {
 
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
-    httpRouter.Get("/books/:bookId", getSingleBookHandler)
+    httpRouter.Get("/books/{bookId}", getSingleBookHandler)
 
     httpRouter.FinishSetup()
 
@@ -166,7 +166,7 @@ func main() {
 
     httpRouter.Get("/books", getBooksHandler)
     httpRouter.Post("/books", createBookHandler)
-    httpRouter.Get("/books/:bookId", getSingleBookHandler)
+    httpRouter.Get("/books/{bookId}", getSingleBookHandler)
 
     httpRouter.FinishSetup()
 
